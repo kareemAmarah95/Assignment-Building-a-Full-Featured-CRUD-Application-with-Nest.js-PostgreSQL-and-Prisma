@@ -21,6 +21,8 @@ export class PostController {
       published: boolean;
       userId: number;
       content: string;
+      created_at: string;
+      updated_at: string;
     },
   ) {
     return this.prismaService.post.create({
@@ -28,6 +30,8 @@ export class PostController {
         title: data.title,
         description: data.description,
         published: data.published,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
         user: {
           connect: {
             id: data.userId,
