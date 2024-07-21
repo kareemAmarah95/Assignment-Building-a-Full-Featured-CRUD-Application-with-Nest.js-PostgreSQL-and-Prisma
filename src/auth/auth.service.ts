@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { AuthDto } from './dto/auth.dto';
@@ -9,12 +10,14 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { jwtSecret } from 'src/utils/constants';
 import { Request, Response } from 'express';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
-    private jwt: JwtService,
+    private readonly jwtService: JwtService,
+    private readonly usersService: UsersService,
   ) {}
 
   async signup(dto: AuthDto) {
@@ -34,6 +37,24 @@ export class AuthService {
 
     return { message: 'signup was succesfull' };
   }
+
+  // ========================================================
+  async signIn(username: string, pass: string): Promise<any> {
+    const user = await this.usersService.findOne(username);
+    if (!user || !(await bcrypt.compare(pass, user.hashedPassword))) {
+      throw new UnauthorizedException();
+    }
+
+    const result = { ...user };
+    delete result.hashedPassword;
+
+    const payload = { username: user.username, sub: user.id };
+    return {
+      access_token: this.jwtService.sign(payload),
+      user: result,
+    };
+  }
+  // ========================================================
 
   async signin(dto: AuthDto, req: Request, res: Response) {
     const { email, password } = dto;
@@ -80,6 +101,6 @@ export class AuthService {
 
   async signToken(args: { id: number; email: string }) {
     const payload = args;
-    return this.jwt.signAsync(payload, { secret: jwtSecret });
+    return this.jwtService.signAsync(payload, { secret: jwtSecret });
   }
 }
